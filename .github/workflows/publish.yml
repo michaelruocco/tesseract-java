@@ -3,10 +3,6 @@ name: Publish
 on:
   workflow_dispatch:
     inputs:
-      image-tag:
-        description: 'Tag for the Docker image'
-        required: false
-        default: latest
       base-image:
         description: 'Base image for building Tesseract (default: eclipse-temurin:25-jre-jammy)'
         required: false
