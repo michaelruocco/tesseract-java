@@ -1,0 +1,66 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      image-tag:
+        description: 'Tag for the Docker image'
+        required: false
+        default: latest
+      base-image:
+        description: 'Base image for building Tesseract (default: eclipse-temurin:25-jre-jammy)'
+        required: false
+        default: eclipse-temurin:25-jre-jammy
+      tesseract-version:
+        description: 'Tesseract version (default: 5.5.1)'
+        required: false
+        default: 5.5.1
+      leptonica-version:
+        description: 'Leptonica version (default: 1.86.0)'
+        required: false
+        default: 1.86.0
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker Hub Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Generate image tag
+        id: generate-tag
+        run: |
+          BASE_IMAGE="${{ github.event.inputs.base-image }}"
+          TESSERACT="${{ github.event.inputs.tesseract-version }}"
+          JAVA=$(echo "$BASE_IMAGE" | sed -E 's/.*:([0-9]+).*/\1/')
+          TAG="${TESSERACT}-jre${JAVA}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/tesseract-java:${{ steps.generate-tag.outputs.tag }}
+            ${{ secrets.DOCKER_USERNAME }}/tesseract-java:latest
+          build-args: |
+            BASE_IMAGE=${{ github.event.inputs.base-image }}
+            TESSERACT_VERSION=${{ github.event.inputs.tesseract-version }}
+            LEPTONICA_VERSION=${{ github.event.inputs.leptonica-version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
