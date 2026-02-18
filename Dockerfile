@@ -72,6 +72,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     zip \
     bash \
+    gnupg \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
