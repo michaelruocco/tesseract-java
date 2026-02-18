@@ -1,5 +1,7 @@
-# ---------- Stage 1: Build ----------
+# ---------- Shared Base Image ----------
 ARG BASE_IMAGE=eclipse-temurin:25-jre-jammy
+
+# Stage 1: Builder (Compiles Leptonica + Tesseract)
 FROM ${BASE_IMAGE} AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -18,8 +20,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
-ARG LEPTONICA_VERSION=1.86.0
 WORKDIR /tmp
+
+ARG LEPTONICA_VERSION=1.86.0
 RUN wget https://github.com/DanBloomberg/leptonica/releases/download/${LEPTONICA_VERSION}/leptonica-${LEPTONICA_VERSION}.tar.gz \
     && tar xzf leptonica-${LEPTONICA_VERSION}.tar.gz \
     && cd leptonica-${LEPTONICA_VERSION} \
@@ -28,7 +31,6 @@ RUN wget https://github.com/DanBloomberg/leptonica/releases/download/${LEPTONICA
     && make install
 
 ARG TESSERACT_VERSION=5.5.1
-WORKDIR /tmp
 RUN wget https://github.com/tesseract-ocr/tesseract/archive/refs/tags/${TESSERACT_VERSION}.tar.gz -O tesseract-${TESSERACT_VERSION}.tar.gz \
     && tar xzf tesseract-${TESSERACT_VERSION}.tar.gz \
     && cd tesseract-${TESSERACT_VERSION} \
@@ -37,8 +39,8 @@ RUN wget https://github.com/tesseract-ocr/tesseract/archive/refs/tags/${TESSERAC
     && make -j$(nproc) \
     && make install
 
-# ---------- Stage 2: Runtime ----------
-FROM ${BASE_IMAGE}
+# Stage 2: Base Runtime Layer (Shared by runtime + ci)
+FROM ${BASE_IMAGE} AS base-runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
@@ -56,3 +58,21 @@ COPY tessdata/eng.traineddata /usr/local/share/tessdata/
 
 ENV LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ENV TESSDATA_PREFIX=/usr/local/share/tessdata
+
+# Stage 3: Minimal Runtime Image
+FROM base-runtime AS runtime
+
+WORKDIR /app
+
+# Stage 4: CI Image (Runtime + Tooling)
+FROM base-runtime AS ci
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    unzip \
+    zip \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace

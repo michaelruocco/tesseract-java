@@ -46,17 +46,33 @@ jobs:
           TAG="${TESSERACT}-jre${JAVA}"
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Build and Push
+      - name: Build and Push Runtime
         uses: docker/build-push-action@v5
         with:
           context: .
+          target: runtime
           push: true
           tags: |
-            ${{ secrets.DOCKER_USERNAME }}/tesseract-java:${{ steps.generate-tag.outputs.tag }}
-            ${{ secrets.DOCKER_USERNAME }}/tesseract-java:latest
+            ${{ secrets.DOCKER_USERNAME }}/tesseract-java:${{ steps.generate-tag.outputs.tag }}-runtime
+            ${{ secrets.DOCKER_USERNAME }}/tesseract-java:latest-runtime
           build-args: |
             BASE_IMAGE=${{ github.event.inputs.base-image }}
             TESSERACT_VERSION=${{ github.event.inputs.tesseract-version }}
             LEPTONICA_VERSION=${{ github.event.inputs.leptonica-version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Build and Push CI
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: ci
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/tesseract-java:${{ steps.generate-tag.outputs.tag }}-ci
+            ${{ secrets.DOCKER_USERNAME }}/tesseract-java:latest-ci
+          build-args: |
+            BASE_IMAGE=${{ github.event.inputs.base-image }}
+            TESSERACT_VERSION=${{ github.event.inputs.tesseract-version }}
+            LEPTONICA_VERSION=${{ github.event.inputs.leptonica-version }}
+          cache-from: type=gha
